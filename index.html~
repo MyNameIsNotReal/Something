@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Approve of concept: Sharing mouses prediction</title>
+<meta name="description" content="Sharing mouses prediction">
+
+
+</head>
+<body>
+
+<h1>Approve of concept: Sharing mouses prediction</h1>
+
+<button id="demo" onclick="window.location.replace('/demo.html');" type="button">Go to Demo</button> <a href="/demo.html">fdsafsaf</a>
+<button id="game" onclick="window.location.replace("/game.html");" type="button">Go to Game</button>
+</body>
+</html>
