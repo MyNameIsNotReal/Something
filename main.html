@@ -10,8 +10,16 @@
 <body>
 <div class="container" style="text-align:center">
 <h1>Approve of concept: Sharing mouses prediction</h1>
-<h3>This was a discuss with Jeremy Stashewsky. It seems interesting and worth to give it a try. <br />Currently, there is only a very simple demo page with a picture simulated mouse move. There is no mouse prediction implemented yet </h3>
-<button id="demo" onclick="window.location.href = '/demo.html';" type="button">Go to mouse predition demo</button> 
+<h3>This was a discuss with Jeremy Stashewsky. It seems interesting and worth to give it a try. <br />
+Two mouse calculations strategies are implemented here:
+<ul style="text-align:left">
+<li>Basied on histroy data, calculate the next mouse posistion will be.(Real prediect)</li>
+<li>Basied on "future data" calculate the mouse path (Knowing the mouse next poisition, calculate the path of the mouse from previous position to next position)</li>
+</ul>
+</h3>
+
+<button id="demo" onclick="window.location.href = '/demoPredict.html';" type="button">Go to mouse predition demo</button> 
+<button id="demo" onclick="window.location.href = '/demoPreCal.html';" type="button">Go to mouse preCalculation demo</button> 
 <button id="game" onclick="alert('Have not implemented this yet');" type="button">Go to Game</button>
 </div>
 </body>

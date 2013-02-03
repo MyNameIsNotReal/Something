@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Demo of mouse sharing prediction</title><meta name="description" content="Demo of mouse sharing prediction">
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+      body{
+
+          background-image:url('/images/demo_bg.png');
+          background-repeat:no-repeat;
+        }
+      #pointer{
+        position:absolute;top:0px;left:0px
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/clients/javascript/lib/GIPredict.js"></script>
+    <script>
+      //Current mouse position send to server
+      var pX = 0;
+      var pY = 0;
+       //init value for simulation
+      var latency = 300;
+      var predictInterval = 50;
+      var precision = 20;
+      var socket = io.connect();
+      var GI_predict = new GI.Predict();
+      var sendId;
+      var drawID;
+      var count = 0;
+      var x = 0;
+      var y = 0;
+      var lastX = 0;
+      var lastY = 0;
+      var isPrediect = true;
+      var prediectChanged = false;
+      var latencyChanged = false;
+      
+      function socketObject (x, y, isPrediect, latency, predictInterval,goBack){
+          this.x = x;
+          this.y = y;
+          this.isPrediect = isPrediect;
+          this.latency = latency;
+          this.predictInterval = predictInterval;
+          this.goBack = goBack;
+      }
+      
+      function sendToServer(goBack){
+          var send = new socketObject(pX,pY);
+          if(prediectChanged) {
+              send.isPrediect = isPrediect;
+              prediectChanged = false;
+          }
+          if(latencyChanged){
+            send.latency = latency;
+            send.predictInterval = predictInterval;
+            latencyChanged = false;
+          }
+          if(goBack != undefined){
+            send.goBack = true;
+          }  
+          socket.send( JSON.stringify(send));
+      }
+      
+      function drawMouse(){
+
+         var XY = GI_predict.getXY();
+         if(isPrediect){
+             x = XY['x'];
+             y = XY['y'];
+         }
+        $('#pointer').css({ 'left':  x +'px', 'top':   y + 'px' });
+      }
+      
+      function sentNewInterval(){
+          clearInterval(sendId);
+          clearInterval(drawID);
+          sendId = setInterval(sendToServer,latency);
+          drawID = setInterval(function(){drawMouse()},predictInterval);
+          $('#latency').val(latency);
+          $('#interval').val(predictInterval);
+      }
+                       
+      $(document).ready(function(){
+        
+          //Hide fake mouse if real mouse is here
+          $(window).mouseover(function() {
+            $('#pointer').hide();
+          }).mouseout(function(){                 
+             $('#pointer').show();
+          });
+          //Remove prediect
+          $('#removePrediect').click(function (e){
+               isPrediect = !isPrediect;
+               if(isPrediect) $('#removePrediect').html('Remove Predict');
+               else $('#removePrediect').html('Add Predict');
+               prediectChanged = true;
+             }
+          );
+          //change intervals
+          $('#setLatency').click(function (e){
+               if(isNaN($('#latency').val()))alert('Latency is not a number');
+               else if(isNaN($('#interval').val()))alert('Predict Interval is not a number');
+               else{
+                  latency = $('#latency').val();
+                  predictInterval = $('#interval').val();
+                  sentNewInterval();
+                  latencyChanged = true;
+               }
+             }
+          );
+          //Go back to main
+          $('#goback').click(function (e){
+              sendToServer(true);
+              window.history.back();
+             }
+          );
+          
+          
+          socket.on('connect', function() {
+           $('#test').html('connected');
+          });
+          socket.on('message', function(msg) {
+              var received = jQuery.parseJSON(msg);
+              if(received.goBack != undefined && received.goBack === true){
+                  window.history.back();
+              }
+              x = received.x;
+              y = received.y;
+
+              GI_predict.fill(x, y);
+              clearInterval(drawID);
+              
+              if(Math.abs(lastX - x) + Math.abs(lastY - y) > 10){
+                drawID = setInterval(function(){drawMouse()},predictInterval);
+              }
+              else{//Last two mouse movement is vary close. Stop prediction
+                GI_predict.fill(x, y, true);
+              }
+              lastX = x;
+              lastY = y;
+              drawMouse();
+
+              if(received.isPrediect != undefined && received.isPrediect !== isPrediect){
+                  isPrediect = received.isPrediect;
+                  if(isPrediect) $('#removePrediect').html('Remove Predict');
+                  else $('#removePrediect').html('Add Predict')
+              }
+              
+              if(received.latency != undefined){
+                  latency = received.latency;
+                  predictInterval = received.predictInterval;
+                  sentNewInterval();
+
+              }
+              
+              $('#test1').html(x + '  '+y);
+           
+          });
+
+          $('body').mousemove(function(e){
+              pX = e.clientX;
+              pY = e.clientY;
+          });       
+          //Start to send data to server and calculate mouse position
+          sentNewInterval();
+        
+      });
+      
+    </script>
+  </head>
+  <body>
+     <div id='test' style='top:30%;left:30%;position:absolute;'>Not Connected</div>
+     <div id='test1' style='top:40%;left:30%;position:absolute;'>what is this</div>
+     <br />
+     <br />
+     <br />
+     <br />
+     <div class='control'>
+     <button type="button" id='removePrediect'>Remove Predict</button><br />
+     <span>Simulated Latency: </span><input type="text" name="latency" id="latency" value=""> <br />
+     <span>Predict Interval: </span><input type="text" name="interval" id="interval" value=""> <br />
+     <button type="button" id='setLatency'>Set</button><br /><br />
+     <button type="button" id="goback">Go back to main</button>
+     </div>
+     <img src="/images/pointer_trans.gif" alt="Image" id='pointer' style='display:none'>
+  </body>
+</html>
