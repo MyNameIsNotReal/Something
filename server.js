@@ -21,6 +21,7 @@ var app = require('http').createServer(handler)
                if (err) { throw err; }
                // You are now connected to your redis.
              });
+ //  client = redis.createClient(6379,'127.0.0.1');
     
 app.listen(8001);
 var publicCookie = 'public';
@@ -47,36 +48,6 @@ var postHandler = {
     './index.html': indexPost
 }
 
-//-------------------------------------------------------------------------
-// indexPost
-// Post handler for index.html
-//-------------------------------------------------------------------------
-function indexPost(req, res,filePath,data){
-  
-  //authentication
-  if(aUser[data.user] != undefined && aUser[data.user] == crypto.createHash('md5').update(data.password).digest("hex")){
-    
-    filePath = './main.html';
-     //create client ID
-    var hashkey = crypto.createHash('md5').update(Math.random().toString(36).substring(7)).digest("hex");
-    if(data.user == userName3 || data.user == userName4 ){
-      filePath = './mainUseOther.html';
-       client.set(hashkey, validOtherLogon, function(err, res){});
-    }
-    else{
-      client.set(hashkey, validLogon, function(err, res){});
-    }
-      
-   
-   
-    readFiles(req, res, filePath,hashkey); 
-  }
-  else{
-    filePath = './errorlogon.html';
-    readFiles(req, res, filePath,publicCookie); 
-  }
-  
-}
 
 //-------------------------------------------------------------------------
 // handler
@@ -168,11 +139,41 @@ function postRequest(req, res, filePath, callback) {
         }
     });
     req.on('end', function(data) {
-      callback(req, res, filePath,querystring.parse(queryData),filePath);
+      callback(req, res, filePath,querystring.parse(queryData));
     });
 
 }
 
+//-------------------------------------------------------------------------
+// indexPost
+// Post handler for index.html
+//-------------------------------------------------------------------------
+function indexPost(req, res,filePath,data){
+  
+  //authentication
+  if(aUser[data.user] != undefined && aUser[data.user] == crypto.createHash('md5').update(data.password).digest("hex")){
+    
+    filePath = './main.html';
+     //create client ID
+    var hashkey = crypto.createHash('md5').update(Math.random().toString(36).substring(7)).digest("hex");
+    if(data.user == userName3 || data.user == userName4 ){
+      filePath = './mainUseOther.html';
+       client.set(hashkey, validOtherLogon, function(err, res){});
+    }
+    else{
+      client.set(hashkey, validLogon, function(err, res){});
+    }
+      
+   
+   
+    readFiles(req, res, filePath,hashkey); 
+  }
+  else{
+    filePath = './errorlogon.html';
+    readFiles(req, res, filePath,publicCookie); 
+  }
+  
+}
 
 //-------------------------------------------------------------------------
 // parseCookie
@@ -220,15 +221,16 @@ var gameStart = false;
 //---------------------------------------------------------------------
 function startGame(socket){
   frameId = setInterval(function () {
-  var send = new targetObject()
-  send.width= Math.floor((Math.random()*30)+1);
-  send.height= Math.floor((Math.random()*30)+1);
-  send.pX= Math.floor((Math.random()*200)+300);
-  send.pY = Math.floor((Math.random()*200)+300);
-  send.color = Math.floor((Math.abs(Math.random() * 16777215)) % 16777215).toString(16);  
-  io.of('/game').emit('target',JSON.stringify(send));
+    var send = new targetObject()
+    send.width= Math.floor((Math.random()*30)+1);
+    send.height= Math.floor((Math.random()*30)+1);
+    send.pX= Math.floor((Math.random()*200)+300);
+    send.pY = Math.floor((Math.random()*200)+300);
+    send.color = Math.floor((Math.abs(Math.random() * 16777215)) % 16777215).toString(16);  
+    io.of('/game').emit('target',JSON.stringify(send));
 
-  }, gameFrame);
+    }, gameFrame);
+  gameStart = true;
   console.log('game start');
 }
 //-------------------------------------------------------------------------
@@ -251,7 +253,7 @@ var gameIO = io
     //Only one interval should fired
     if(!gameStart){
       startGame(socket);
-      gameStart = true;
+
     }
     console.log(gameStart);
     socket.on('disconnect', function () {
