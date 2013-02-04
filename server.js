@@ -11,7 +11,6 @@
 var app = require('http').createServer(handler)
   , io = require('socket.io').listen(app)
   , fs = require('fs')
-  , vm = require('vm')
   , path = require('path')  
   , url = require('url')
   , querystring = require('querystring')
@@ -26,29 +25,50 @@ var app = require('http').createServer(handler)
 app.listen(8001);
 var publicCookie = 'public';
 var validLogon = 'valid'
+var validOtherLogon = 'other'
+var userName1 = 'goinstant1';
+var userName2 = 'goinstant2';
+var userName3 = 'goinstant3';
+var userName4 = 'goinstant4';
 //User name and password
 var aUser = {
-  'goinstant1':'d8f254590a4a43b21d33c4550c16b8d5',
-  'goinstant2':'aba45b89ae3a7435cc79fd8161b5d3cd',
-  'goinstant3':'eb41242558550db88715085b2be52761',
-  'goinstant4':'720664d75ea8d3b71c8a4cd1d9dd7caf'
+   'goinstant1':'d8f254590a4a43b21d33c4550c16b8d5',
+   'goinstant2':'aba45b89ae3a7435cc79fd8161b5d3cd',
+   'goinstant3':'eb41242558550db88715085b2be52761',
+   'goinstant4':'720664d75ea8d3b71c8a4cd1d9dd7caf'
 
 };
 
-//Post Page name with callback handler
+//-------------------------------------------------------------------------
+// postHandler
+// Post Page name with callback handler
+//-------------------------------------------------------------------------
 var postHandler = {
     './index.html': indexPost
 }
-//Post handler for index.html
+
+//-------------------------------------------------------------------------
+// indexPost
+// Post handler for index.html
+//-------------------------------------------------------------------------
 function indexPost(req, res,filePath,data){
   
   //authentication
   if(aUser[data.user] != undefined && aUser[data.user] == crypto.createHash('md5').update(data.password).digest("hex")){
     
     filePath = './main.html';
-    //create client ID
+     //create client ID
     var hashkey = crypto.createHash('md5').update(Math.random().toString(36).substring(7)).digest("hex");
-    client.set(hashkey, validLogon, function(err, res){});
+    if(data.user == userName3 || data.user == userName4 ){
+      filePath = './mainUseOther.html';
+       client.set(hashkey, validOtherLogon, function(err, res){});
+    }
+    else{
+      client.set(hashkey, validLogon, function(err, res){});
+    }
+      
+   
+   
     readFiles(req, res, filePath,hashkey); 
   }
   else{
@@ -58,10 +78,10 @@ function indexPost(req, res,filePath,data){
   
 }
 
-
-
-
-//Server handler 
+//-------------------------------------------------------------------------
+// handler
+// Server handler 
+//-------------------------------------------------------------------------
 function handler (req, res) {
   console.log('req starting...' + req.url);
   var filePath = '.' + req.url;
@@ -80,6 +100,9 @@ function handler (req, res) {
       if (err || reply == null || reply != validLogon ) {
             filePath = './index.html';
       } 
+      else if(reply == validOtherLogon){
+        filePath = './mainUseOther.html';
+      }
       else{
         cookieString = cookies['clientId'];
       }
@@ -92,7 +115,10 @@ function handler (req, res) {
   }
 }
 
-//Read File function
+//-------------------------------------------------------------------------
+// readFiles
+// Read File function
+//------------------------------------------------------------------------
 function readFiles(req, res, filePath, cookieId){
 
   //Serve read file rewrite res  
@@ -125,8 +151,10 @@ function readFiles(req, res, filePath, cookieId){
   });
 }
      
-
-//Server Post function
+//-------------------------------------------------------------------------
+// postRequest
+// Server Post function
+//------------------------------------------------------------------------
 function postRequest(req, res, filePath, callback) {
     var queryData = "";
     if(typeof callback !== 'function') return null;
@@ -146,7 +174,10 @@ function postRequest(req, res, filePath, callback) {
 }
 
 
-
+//-------------------------------------------------------------------------
+// parseCookie
+// parse Cookie  variable
+//------------------------------------------------------------------------
 function parseCookie(cookieString) {
     var cookies = {};
     cookieString && cookieString.split(';').forEach(function( cookie ) {
@@ -156,15 +187,89 @@ function parseCookie(cookieString) {
   return cookies;
 }
 
-
-var simple = io
+//-------------------------------------------------------------------------
+// predictIO
+// A very simple socketio For prediected demo
+//------------------------------------------------------------------------
+var predictIO = io
   .sockets
   .on('connection', function(socket) {
    socket.on('message', function(data) {
 
      socket.broadcast.send(data);
    });
-    socket.on('disconnect', function() {
-      // handle disconnect
-    });
   });
+  
+  
+//-------------------------------------------------------------------------
+// For the small demo game
+//------------------------------------------------------------------------
+var users = {};
+var gameFrame = 1000;
+var targetObject = function(width, height, color,pX, pY){
+    this.width = width;
+    this.height = height;
+    this.color = color;
+    this.pX = pX;
+    this.pY = pY;
+}
+var frameId;
+var gameStart = false;
+//-------------------------------------------------------------------------
+//Start new game
+//---------------------------------------------------------------------
+function startGame(socket){
+  frameId = setInterval(function () {
+  var send = new targetObject()
+  send.width= Math.floor((Math.random()*30)+1);
+  send.height= Math.floor((Math.random()*30)+1);
+  send.pX= Math.floor((Math.random()*200)+300);
+  send.pY = Math.floor((Math.random()*200)+300);
+  send.color = Math.floor((Math.abs(Math.random() * 16777215)) % 16777215).toString(16);  
+  io.of('/game').emit('target',JSON.stringify(send));
+
+  }, gameFrame);
+  console.log('game start');
+}
+//-------------------------------------------------------------------------
+// Stop Game
+//---------------------------------------------------------------------
+function stopGame(socket){
+  clearInterval(frameId);
+  gameStart = false;
+ 
+}
+//-------------------------------------------------------------------------
+// Game namespace
+//---------------------------------------------------------------------
+var gameIO = io
+  .of('/game')
+  .on('connection', function(socket) {
+    socket.on('checkIn', function (incoming) {
+        users[socket.id] = socket;
+    });
+    //Only one interval should fired
+    if(!gameStart){
+      startGame(socket);
+      gameStart = true;
+    }
+    console.log(gameStart);
+    socket.on('disconnect', function () {
+      stopGame(socket);
+    });
+    
+    socket.on('clicked', function(data) {
+      //Send win/lose text out
+      socket.emit('result','You Win');
+      socket.broadcast.emit('result','You lose');
+       //Disconnect all users
+      for (var key in users) {
+          users[key].disconnect();
+      }
+      stopGame(socket);
+    });
+  });  
+  
+
+
+  

@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Demo of mouse sharing prediction</title><meta name="description" content="Demo of mouse sharing prediction">
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+      body{
+          background-repeat:no-repeat;
+        }
+      #target{
+        position:absolute;
+        width:100px;
+        height:100px;
+        top:0px;left:0px
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <script>
+      var game;
+      var resultSet = false;
+      //-------------------------------------------------------------------------
+      // getClientId
+      // Get Client ID
+      //------------------------------------------------------------------------
+      function getClientId(){
+        var cookie = document.cookie.split(";");
+        for(var i = 0; i < cookie.length; i++){
+            var name =cookie[i].substr(0,cookie[i].indexOf("="));
+            var value =cookie[i].substr(cookie[i].indexOf("=")+1);
+            name = name.replace(/^\s+|\s+$/g,"");
+            if(name == 'clientId') {
+                return unescape(value);
+            }
+          }
+      }           
+      $(document).ready(function(){
+        
+        game = io.connect('/game');
+        game.on('connect', function() {
+         $('#test').html('connected');
+        }); 
+        //Checkin Current User
+        game.emit('checkIn',getClientId());
+        
+        //Moveing target
+        game.on('target', function(msg) {
+          var received = jQuery.parseJSON(msg);
+           $('#target').css({ 'left':  received.pX +'px', 'top':   received.pY + 'px' ,'width':received.width, 'height':received.height,'background-color': '#'+received.color});
+        });
+        
+        //get Result
+        //For some reason, even I disconnect all the clents
+        //The below #target still send data to server and still get response.
+        //So, use a result set for now
+        game.on('result', function(msg) {
+          if( !resultSet){
+            $('#result').html(msg); 
+            resultSet = true;
+          }
+        });
+        
+         game.on('disconnect',function(){
+            $('#test').html('disconnect');
+            $('#game').show();
+          });
+        //get the winner
+        $('#target').click(function (e){
+              game.emit('clicked', getClientId());
+            }
+         );  
+          $('#game').hide();
+      });
+     
+    </script>
+  </head>
+  <body>
+     <div id='test' style='top:10%;left:10%;position:absolute;'>Not Connected</div>
+     <div id='target'></div>
+     <div id='result' style='position:absolute; font-weight:bold'>Please click the shape !! Let's see who click fast</div><br />
+     
+     <button id='game' onclick="window.location.href = '/game.html'" type="button">Restart Game</button>
+
+  </body>
+</html>
